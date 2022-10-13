@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"google.golang.org/grpc"
 	"io"
@@ -14,7 +13,7 @@ import (
 
 const (
 	remoteAddr   = "127.0.0.1:8080"
-	resourceName = "test.png"
+	resourceName = "test.zip"
 )
 
 func main() {
@@ -48,26 +47,32 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	reader := bufio.NewReader(file)
-	buffer := make([]byte, 1024)
+	//reader := bufio.NewReader(file)
+	buffer := make([]byte, 1024*64) // 64KB
+	offset := int64(0)
 	for {
-		n, err := reader.Read(buffer)
+		n, err := file.ReadAt(buffer, offset)
+		println("Read ", n, " bytes")
+		offset = offset + int64(n)
+		if n > 0 {
+			req := &streaming.UploadDataRequest{
+				Data: &streaming.UploadDataRequest_ChunkData{
+					ChunkData: buffer[:n],
+				},
+			}
+
+			err = stream.Send(req)
+			if err != nil {
+				log.Fatal("cannot send chunk to server: ", err)
+			}
+		} else if err == nil {
+			log.Fatal("nil error on empty read: io.ReaderAt contract violated")
+		}
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			log.Fatal("cannot read chunk to buffer: ", err)
-		}
-
-		req := &streaming.UploadDataRequest{
-			Data: &streaming.UploadDataRequest_ChunkData{
-				ChunkData: buffer[:n],
-			},
-		}
-
-		err = stream.Send(req)
-		if err != nil {
-			log.Fatal("cannot send chunk to server: ", err)
 		}
 	}
 
