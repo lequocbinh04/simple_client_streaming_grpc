@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package streaming;
+
+option go_package = "proto/streaming";
+
+message UploadDataRequest {
+  oneof data {
+    DataInfo info = 1;
+    bytes chunk_data = 2;
+  };
+}
+
+message DataInfo {
+  string file_id = 1;
+  string file_name = 2;
+  string file_type = 3;
+}
+
+message UploadDataResponse {
+  string id = 1;
+  uint32 size = 2;
+}
+
+service DataStreaming {
+  rpc UploadData(stream UploadDataRequest) returns (UploadDataResponse);
+}
